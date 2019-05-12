@@ -1,9 +1,9 @@
 #include <unistd.h> 
-#include <sys/socket.h> 
 #include <cstdlib> 
 #include <string>
 #include <iostream>
-#include <arpa/inet.h>
+#include <sys/socket.h>
+#include <sys/stat.h>
 #include <netinet/in.h> 
 #define PORT 80
 #define BACKLOG 5
@@ -35,6 +35,26 @@ struct HttpResponses {
     result += "\n";
     result += msg;
     return result;
+  }
+};
+
+class File {
+private: 
+  string path;
+  struct stat stat_result;
+  
+public:  
+  File(string path) {
+    this->path = path;
+    stat(path.c_str(), &stat_result);
+  }
+
+  bool is_file() {
+    return S_ISREG(stat_result.st_mode);
+  }
+
+  bool is_dir() {
+    return S_ISDIR(stat_result.st_mode);
   }
 };
   
