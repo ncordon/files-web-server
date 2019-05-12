@@ -1,16 +1,21 @@
 #include <unistd.h> 
 #include <cstdlib> 
 #include <string>
+#include <vector>
 #include <iostream>
+#include <fstream>
+#include <dirent.h>
+#include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <netinet/in.h> 
-#define PORT 80
 #define BACKLOG 5
 
 using std::cout;
 using std::endl;
 using std::string;
+using std::vector;
+using std::ifstream;
 
 struct HttpResponses {
   string NOT_FOUND;
@@ -41,20 +46,57 @@ struct HttpResponses {
 class File {
 private: 
   string path;
-  struct stat stat_result;
   
 public:  
   File(string path) {
+    if (!path.empty() && path.back() == '/')
+      path.pop_back();
+    
     this->path = path;
-    stat(path.c_str(), &stat_result);
   }
 
   bool is_file() {
+    struct stat stat_result;
+    stat(path.c_str(), &stat_result);
+
     return S_ISREG(stat_result.st_mode);
   }
 
-  bool is_dir() {
+  bool is_folder() {
+    struct stat stat_result;
+    stat(path.c_str(), &stat_result);
+    
     return S_ISDIR(stat_result.st_mode);
+  }
+
+  vector<string> list_files() {
+    vector<string> files;
+    DIR *directory = opendir(path.c_str());
+    struct dirent *entry = readdir(directory);
+
+    while (entry != NULL) {
+      files.push_back(string(entry->d_name));
+      entry = readdir(directory);
+    }
+    
+    closedir(directory);
+    return files;
+  }
+
+  File operator /(string file) {
+    string sanitized_path = path;
+
+    if (!path.empty() && path.back() == '/')
+      sanitized_path.pop_back();
+
+    if (!file.empty() && file.front() == '/')
+      file.erase(file.begin());
+    
+    return File(sanitized_path + "/" + file);
+  }
+
+  string get_path() {
+    return path;
   }
 };
   
@@ -98,15 +140,70 @@ int main(int argc, char* argv[]) {
   // Make the server listen, with at much BACKLOG requests waiting response
   listen(socket_fd, BACKLOG);
 
-  
-  struct sockaddr_in their_addr;
-  current_socket = accept(socket_fd,
-                          (struct sockaddr*) &their_addr,
-                          &address_size);
-  num_read = read(current_socket , buffer, BUFFER_SIZE);
+  while(true) {
+    struct sockaddr_in their_addr;
+    current_socket = accept(socket_fd,
+                            (struct sockaddr*) &their_addr,
+                            &address_size);
+    num_read = read(current_socket , buffer, BUFFER_SIZE);
 
-  send(current_socket,
-       responses.NOT_FOUND.c_str(),
-       responses.NOT_FOUND.size(),
-       0);
+    string http_method;
+    string msg;
+    int i = 0;
+
+    while (i < num_read && buffer[i] != ' ') {
+      http_method += buffer[i];
+      ++i;
+    }
+  
+    if (http_method == "GET") {
+      ++i;
+      string path;
+    
+      while (i < num_read && buffer[i] != ' ') {
+        path += buffer[i];
+        ++i;
+      }
+
+      File current = File(root_folder) / path;
+      
+      if (current.is_folder()) {
+        vector<string> files = current.list_files();
+        string listing = "<ul> \n";
+        
+        for (auto f : files) {
+          File child = File(path) / f;
+          listing += "<li><a href=\"" + child.get_path() + "\">" + f + "</a></li> \n";
+        }
+
+        listing += "</ul> \n";
+      
+        msg = responses.OK(
+            "<!DOCTYPE html> \n<html> \n<body> \n" + listing + "</body> </html>");
+        send(current_socket, msg.c_str(), msg.size(), 0);
+      } else if (current.is_file()) {
+        msg = responses.OK("<!DOCTYPE html> \n<html> \n<body> \n<pre> \n");
+        send(current_socket, msg.c_str(), msg.size(), 0);
+        char read_buffer[BUFFER_SIZE];
+        
+        ifstream is(current.get_path());
+        
+        while (is) {
+          is.read(read_buffer, BUFFER_SIZE);
+          send(current_socket, read_buffer, is.gcount(), 0);
+        }
+
+        string end_msg = "\n</pre> \n</body> \n</html>";
+        send(current_socket, end_msg.c_str(), end_msg.size(), 0);
+      } else {
+        msg = responses.NOT_FOUND;
+        send(current_socket, msg.c_str(), msg.size(), 0);
+      }
+    } else {
+      msg = responses.NOT_FOUND;
+      send(current_socket, msg.c_str(), msg.size(), 0);
+    }
+
+    close(current_socket);
+  }
 } 
