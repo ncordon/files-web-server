@@ -1,10 +1,13 @@
+#include <iostream>
+#include <thread>
+#include <functional>
 #include "file.h"
 #include "server.h"
-#include <iostream>
 
 using std::cout;
 using std::endl;
-  
+using std::thread;
+
 int main(int argc, char* argv[]) {
 
   if (argc != 3) {
@@ -21,6 +24,7 @@ int main(int argc, char* argv[]) {
   
   while(true) {
     Request request = server.await_request();
-    request.answer();
+    thread t([&request]() { request.answer(); });
+    t.detach();
   }
 } 

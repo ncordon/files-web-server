@@ -5,10 +5,10 @@ LIB=./lib
 OBJ=./obj
 SRC=./src
 
-all: FLAGS= -Wall -g -std=c++11
+all: FLAGS= -Wall -g -std=c++11 -lpthread
 
 all: clean $(OBJ)/file.o $(OBJ)/server.o $(OBJ)/main.o
-	g++ -o $(BIN)/file-indexer $(OBJ)/main.o $(OBJ)/file.o $(OBJ)/server.o
+	g++ $(FLAGS) -o $(BIN)/file-indexer $(OBJ)/main.o $(OBJ)/file.o $(OBJ)/server.o
 $(OBJ)/file.o: $(SRC)/file.cc
 	g++ -o $(OBJ)/file.o -c $< -I$(INCLUDE) $(FLAGS)
 $(OBJ)/server.o: $(SRC)/server.cc
