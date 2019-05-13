@@ -8,6 +8,10 @@ using std::cout;
 using std::endl;
 using std::thread;
 
+void request_handler(Request request) {
+  request.answer();
+}
+
 int main(int argc, char* argv[]) {
 
   if (argc != 3) {
@@ -24,7 +28,7 @@ int main(int argc, char* argv[]) {
   
   while(true) {
     Request request = server.await_request();
-    thread t([&request]() { request.answer(); });
+    thread t(request_handler, request);
     t.detach();
   }
 } 

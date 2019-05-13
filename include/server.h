@@ -21,9 +21,7 @@ using std::cout;
 using std::endl;
 
 struct HttpResponses {
-  string NOT_FOUND;
-
-  HttpResponses();
+  string NOT_FOUND();
 
   string OK(string msg);
 };

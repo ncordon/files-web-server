@@ -1,17 +1,20 @@
 #include "server.h"
 
 
-HttpResponses::HttpResponses() {
-  // Set generic not found
-  NOT_FOUND  = "HTTP/1.1 404 Not Found \n";
-  NOT_FOUND += "Content-Type: text/html; charset=utf-8 \n";
-  NOT_FOUND += "\n";
-  NOT_FOUND += "<!DOCTYPE html> \n";
-  NOT_FOUND += "<html> \n";
-  NOT_FOUND += "  <body> \n";
-  NOT_FOUND += "    <h1> Not Found </h1> \n";
-  NOT_FOUND += "  </body> \n";
-  NOT_FOUND += "</html> \n";
+string HttpResponses::NOT_FOUND() {
+  string result;
+
+  result  = "HTTP/1.1 404 Not Found \n";
+  result += "Content-Type: text/html; charset=utf-8 \n";
+  result += "\n";
+  result += "<!DOCTYPE html> \n";
+  result += "<html> \n";
+  result += "  <body> \n";
+  result += "    <h1> Not Found </h1> \n";
+  result += "  </body> \n";
+  result += "</html> \n";
+
+  return result;
 }
 
 
@@ -98,11 +101,11 @@ void Request::answer() {
       string end_msg = "\n</pre> \n</body> \n</html>";
       send(fd, end_msg.c_str(), end_msg.size(), 0);
     } else {
-      msg = responses.NOT_FOUND;
+      msg = responses.NOT_FOUND();
       send(fd, msg.c_str(), msg.size(), 0);
     }
   } else {
-    msg = responses.NOT_FOUND;
+    msg = responses.NOT_FOUND();
     send(fd, msg.c_str(), msg.size(), 0);
   }
 

@@ -1,0 +1,2 @@
+curl -X GET http://localhost:8000/LICENSE
+curl -X GET http://localhost:8000/.gitignore
