@@ -1,2 +1,4 @@
-curl -X GET http://localhost:8000/LICENSE
-curl -X GET http://localhost:8000/.gitignore
+curl -X GET http://localhost:8000/include/file.h
+curl -X GET http://localhost:8000/foo
+curl -X GET http://localhost:8000/include/server.h
+curl -X GET http://localhost:8000/non-existent

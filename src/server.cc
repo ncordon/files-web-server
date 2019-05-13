@@ -47,7 +47,8 @@ void Request::answer() {
   // Sleep for 100 microseconds if the descriptor is not ready to be read
   while ((num_read = read(fd , buffer, BUFFER_SIZE)) <= 0)
     usleep(100);
-    
+
+  // Read the request
   while (num_read > 0) {
     for (int i = 0; i < num_read; ++i)
       request += buffer[i];
@@ -55,7 +56,8 @@ void Request::answer() {
     total_read += num_read;
     num_read = read(fd , buffer, BUFFER_SIZE);
   }
-  
+
+  // Read the method from the request
   while (i < total_read && request[i] != ' ') {
     http_method += request[i];
     ++i;
@@ -75,16 +77,17 @@ void Request::answer() {
     if (current.is_folder()) {
       vector<string> files = current.list_files();
       string listing = "<ul> \n";
-        
+
+      // Generate the list of files
       for (auto f : files) {
         File child = File(path) / f;
         listing += "<li><a href=\"" + child.get_path() + "\">" + f + "</a></li> \n";
       }
 
-      listing += "</ul> \n";
-      
+      listing += "</ul> \n";      
       msg = responses.OK(
           "<!DOCTYPE html> \n<html> \n<body> \n" + listing + "</body> </html>");
+      
       send(fd, msg.c_str(), msg.size(), 0);
     } else if (current.is_file()) {
       msg = responses.OK("<!DOCTYPE html> \n<html> \n<body> \n<pre> \n");
@@ -92,7 +95,10 @@ void Request::answer() {
       char read_buffer[BUFFER_SIZE];
         
       ifstream is(current.get_path());
-        
+
+      // Read the content of the file
+      // We need to buffer it, since if the file
+      // was too heavy, it would not fit into memory
       while (is) {
         is.read(read_buffer, BUFFER_SIZE);
         send(fd, read_buffer, is.gcount(), 0);
