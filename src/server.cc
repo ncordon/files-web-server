@@ -35,9 +35,10 @@ Request::Request(string root_folder, int fd) {
 }
 
 
-void Request::answer() {
+void Request::parse_request() {
   string request;
   string http_method;
+  string path;
   string msg;
   char buffer[BUFFER_SIZE];
   int num_read;
@@ -62,58 +63,81 @@ void Request::answer() {
     http_method += request[i];
     ++i;
   }
-  
-  if (http_method == "GET") {
+
+  ++i;
+
+  // Read the path we are requesting
+  while (i < total_read && buffer[i] != ' ') {
+    path += buffer[i];
     ++i;
-    string path;
-    
-    while (i < total_read && buffer[i] != ' ') {
-      path += buffer[i];
-      ++i;
-    }
-    
-    File current = File(root_folder) / path;
-      
-    if (current.is_folder()) {
-      vector<string> files = current.list_files();
-      string listing = "<ul> \n";
-
-      // Generate the list of files
-      for (auto f : files) {
-        File child = File(path) / f;
-        listing += "<li><a href=\"" + child.get_path() + "\">" + f + "</a></li> \n";
-      }
-
-      listing += "</ul> \n";      
-      msg = responses.OK(
-          "<!DOCTYPE html> \n<html> \n<body> \n" + listing + "</body> </html>");
-      
-      send(fd, msg.c_str(), msg.size(), 0);
-    } else if (current.is_file()) {
-      msg = responses.OK("<!DOCTYPE html> \n<html> \n<body> \n<pre> \n");
-      send(fd, msg.c_str(), msg.size(), 0);
-      char read_buffer[BUFFER_SIZE];
-        
-      ifstream is(current.get_path());
-
-      // Read the content of the file
-      // We need to buffer it, since if the file
-      // was too heavy, it would not fit into memory
-      while (is) {
-        is.read(read_buffer, BUFFER_SIZE);
-        send(fd, read_buffer, is.gcount(), 0);
-      }
-
-      string end_msg = "\n</pre> \n</body> \n</html>";
-      send(fd, end_msg.c_str(), end_msg.size(), 0);
-    } else {
-      msg = responses.NOT_FOUND();
-      send(fd, msg.c_str(), msg.size(), 0);
-    }
-  } else {
-    msg = responses.NOT_FOUND();
-    send(fd, msg.c_str(), msg.size(), 0);
   }
+
+  file_request = {http_method, path};
+}
+
+
+void Request::list_folder(File& current) {
+  string msg;
+  vector<string> files = current.list_files();
+  string listing = "<ul> \n";
+
+  // Generate the list of files
+  for (auto f : files) {
+    File child = File(file_request.path) / f;
+    listing += "<li><a href=\"" + child.get_path() + "\">" + f + "</a></li> \n";
+  }
+
+  listing += "</ul> \n";      
+  msg = responses.OK(
+      "<!DOCTYPE html> \n<html> \n<body> \n" + listing + "</body> </html>");
+      
+  send(fd, msg.c_str(), msg.size(), 0);
+}
+
+
+void Request::print_content(File& current) {
+  string msg = responses.OK("<!DOCTYPE html> \n<html> \n<body> \n<pre> \n");
+  send(fd, msg.c_str(), msg.size(), 0);
+  char read_buffer[BUFFER_SIZE];
+        
+  ifstream is(current.get_path());
+
+  // Read the content of the file
+  // We need to buffer it, since if the file
+  // was too heavy, it would not fit into memory
+  while (is) {
+    is.read(read_buffer, BUFFER_SIZE);
+    send(fd, read_buffer, is.gcount(), 0);
+  }
+
+  string end_msg = "\n</pre> \n</body> \n</html>";
+  send(fd, end_msg.c_str(), end_msg.size(), 0);
+}
+
+
+void Request::return_error() {
+  string msg;
+  msg = responses.NOT_FOUND();
+  send(fd, msg.c_str(), msg.size(), 0);
+}
+
+
+void Request::answer() {
+  parse_request();
+  string http_method = file_request.http_method;
+  string path = file_request.path;
+
+  if (http_method == "GET") {    
+    File current = File(root_folder) / path;
+    
+    if (current.is_folder())
+      list_folder(current);
+    else if (current.is_file())
+      print_content(current);
+    else
+      return_error();
+  } else
+    return_error();
 
   close(fd);
 }
